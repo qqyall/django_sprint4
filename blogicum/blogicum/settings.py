@@ -6,7 +6,10 @@ SECRET_KEY = 'django-insecure-0=d7jfuq6wj3!nz$z19z#pq0iygjp%^211qht3n(9tmz$3hxj=
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+]
 
 INSTALLED_APPS = [
     'blog.apps.BlogConfig',
@@ -18,6 +21,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'debug_toolbar',
+    'django_bootstrap5',
 ]
 
 MIDDLEWARE = [
