@@ -1,9 +1,9 @@
 from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path, reverse_lazy
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.views.generic.edit import CreateView
-
+from django.contrib.auth.views import LoginView
 
 handler404 = 'pages.views.handler_404'
 handler404 = 'pages.views.handler_403_csrf_failure'
@@ -21,6 +21,14 @@ urlpatterns = [
             success_url=reverse_lazy('blog:index'),
         ),
         name='registration',
+    ),
+    path(
+        'auth/login/',
+        LoginView.as_view(
+            template_name='registration/login.html',
+            form_class=AuthenticationForm,
+        ),
+        name='login',
     ),
     path('auth/', include('django.contrib.auth.urls')),
 ]

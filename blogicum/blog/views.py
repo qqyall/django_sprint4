@@ -1,9 +1,11 @@
 from datetime import datetime
 
 from django.shortcuts import get_list_or_404, get_object_or_404, render
+from django.contrib.auth import get_user_model
 
 from .consts import NUMBER_OF_POSTS_ON_MAIN_PAGE
 from .models import Category, Post
+from users.forms import CustomUserCreationForm, CustomUserChangeForm
 
 
 def post_published_filter():
@@ -53,3 +55,32 @@ def category_posts(request, category_slug):
 
     context = {'post_list': post_list, 'category': category}
     return render(request, template, context)
+
+
+def create_post(request):
+    template = 'blog/create.html'
+    context = {}
+    return render(request, template, context)
+
+
+def profile(request, username):
+    profile = get_object_or_404(
+        get_user_model().objects.all().filter(username=username)
+    )
+    template = 'blog/profile.html'
+    context = {'profile': profile}
+    return render(request, template, context=context)
+
+
+def edit_profile(request, username=None):
+    instance = get_object_or_404(get_user_model(), username=request.user)
+    form = CustomUserChangeForm(request.POST, instance=instance)
+    context = {'form': form}
+    if form.is_valid():
+        form.save()
+    template = 'blog/user.html'
+    return render(request, template, context)
+
+
+def password_change():
+    pass
