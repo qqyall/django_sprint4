@@ -1,11 +1,19 @@
 from datetime import datetime
-
-from django.shortcuts import get_list_or_404, get_object_or_404, render
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import reverse_lazy
+from django.shortcuts import (
+    get_list_or_404, get_object_or_404, render, redirect
+)
+from django.views.generic import (
+    CreateView, DeleteView, DetailView, ListView, UpdateView
+)
 from django.contrib.auth import get_user_model
 
-from .consts import NUMBER_OF_POSTS_ON_MAIN_PAGE
-from .models import Category, Post
-from users.forms import CustomUserCreationForm, CustomUserChangeForm
+from .models import Category, Post, Comment
+
+from .forms import PostForm, CommentForm
+from users.forms import CustomUserChangeForm
 
 
 def post_published_filter():
@@ -16,28 +24,52 @@ def post_published_filter():
     )
 
 
-def index(request):
-    template = 'blog/index.html'
-    post_list = post_published_filter(
-    ).order_by('-created_at')[:NUMBER_OF_POSTS_ON_MAIN_PAGE]
-
-    context = {
-        'post_list': post_list
-    }
-    return render(request, template, context)
+class PostListView(ListView):
+    model = Post
+    ordering = 'id'
+    paginate_by = 10
+    template_name = 'blog/index.html'
+    ordering = ('-pub_date',)
 
 
-def post_detail(request, post_id):
-    template = 'blog/detail.html'
-    post = get_object_or_404(
-        post_published_filter(),
-        pk=post_id
-    )
+class PostCreateView(CreateView):
+    model = Post
+    form_class = PostForm
+    template_name = 'blog/create.html'
 
-    context = {
-        'post': post
-    }
-    return render(request, template, context)
+    def form_valid(self, form):
+        form.instance.author = self.request.user
+        return super().form_valid(form)
+
+    success_url = reverse_lazy('blog:index')
+
+
+class PostDetailView(DetailView):
+    model = Post
+    template_name = 'blog/detail.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['post'] = get_object_or_404(Post, pk=self.kwargs['pk'])
+        context['form'] = CommentForm()
+        context['comments'] = (
+            self.object.comments.select_related('post')
+        )
+        return context
+
+
+class PostUpdateView(UpdateView):
+    model = Post
+    form_class = PostForm
+    template_name = 'blog/create.html'
+    success_url = reverse_lazy('blog:index')
+
+
+class PostDeleteView(DeleteView):
+    model = Post
+    form_class = PostForm
+    template_name = 'blog/create.html'
+    success_url = reverse_lazy('blog:index')
 
 
 def category_posts(request, category_slug):
@@ -52,27 +84,52 @@ def category_posts(request, category_slug):
             slug=category_slug
         )
     )
-
     context = {'post_list': post_list, 'category': category}
     return render(request, template, context)
 
 
-def create_post(request):
-    template = 'blog/create.html'
-    context = {}
+@login_required
+def add_comment(request, post_id):
+    post = get_object_or_404(Post, pk=post_id)
+    form = CommentForm(request.POST)
+    if form.is_valid():
+        comment = form.save(commit=False)
+        comment.author = request.user
+        comment.post = post
+        comment.save()
+    return redirect('blog:post_detail', pk=post_id)
+
+
+@login_required
+def edit_comment(request, post_id, comment_id):
+    comment = get_object_or_404(Comment, pk=comment_id)
+    form = CommentForm(request.POST or None, instance=comment)
+    context = {'comment': form}
+    if form.is_valid():
+        form = form.save()
+    template = 'blog/comment.html'
     return render(request, template, context)
 
 
+def delete_comment(request, pk):
+    pass
+
+
+@login_required
 def profile(request, username):
     profile = get_object_or_404(
         get_user_model().objects.all().filter(username=username)
     )
+    page_obj = get_list_or_404(
+        Post.objects.filter(author_id=request.user.id)
+    )
     template = 'blog/profile.html'
-    context = {'profile': profile}
+    context = {'profile': profile, 'page_obj': page_obj}
     return render(request, template, context=context)
 
 
-def edit_profile(request, username=None):
+@login_required
+def edit_profile(request):
     instance = get_object_or_404(get_user_model(), username=request.user)
     form = CustomUserChangeForm(request.POST, instance=instance)
     context = {'form': form}
@@ -80,7 +137,3 @@ def edit_profile(request, username=None):
         form.save()
     template = 'blog/user.html'
     return render(request, template, context)
-
-
-def password_change():
-    pass
