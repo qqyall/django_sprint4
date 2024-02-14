@@ -79,6 +79,11 @@ class Post(PublishedModel, CreatedAtModel):
         on_delete=models.SET_NULL,
         null=True
     )
+    image = models.ImageField(
+        verbose_name='Фото',
+        upload_to='posts_images',
+        blank=True
+    )
 
     class Meta:
         verbose_name = "публикация"

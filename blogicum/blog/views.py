@@ -1,24 +1,24 @@
 from datetime import datetime
 
+from django.core.paginator import Paginator
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.db.models.query import QuerySet
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import (get_list_or_404, get_object_or_404, redirect,
-                              render)
+from django.shortcuts import (get_object_or_404, redirect, render)
 from django.urls import reverse_lazy
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
 
 from users.forms import CustomUserChangeForm
 
-from .forms import CommentForm, PostForm, ProfileForm
+from .forms import CommentForm, PostForm
 from .models import Category, Comment, Post
+
+from .consts import POSTS_ON_PAGE
 
 
 class PostListView(ListView):
     model = Post
-    paginate_by = 10
+    paginate_by = POSTS_ON_PAGE
     template_name = 'blog/index.html'
     ordering = ('-id',)
 
@@ -27,12 +27,13 @@ class PostCreateView(CreateView):
     model = Post
     form_class = PostForm
     template_name = 'blog/create.html'
+    success_url = 'blog:index'
 
     def form_valid(self, form):
         form.instance.author = self.request.user
+        self.success_url = reverse_lazy(
+            'blog:profile', args=[self.request.user])
         return super().form_valid(form)
-
-    success_url = reverse_lazy('blog:index')
 
 
 class PostDetailView(DetailView):
@@ -53,19 +54,21 @@ class PostUpdateView(UpdateView):
     model = Post
     form_class = PostForm
     template_name = 'blog/create.html'
-    success_url = reverse_lazy('blog:index')
+    success_url = 'blog:index'
 
 
 class PostDeleteView(DeleteView):
     model = Post
     form_class = PostForm
     template_name = 'blog/create.html'
-    success_url = reverse_lazy('blog:index')
+    success_url = "blog:index"
+
+    def form_valid(self, form):
+        return super().form_valid(form)
 
 
 class CategoryListView(ListView):
     model = Category
-    paginate_by = 1
     template_name = 'blog/category.html'
     ordering = ('-id',)
 
@@ -79,13 +82,17 @@ class CategoryListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page_obj'] = get_list_or_404(
-            self.post_published_filter(),
-            category__slug=self.kwargs['category_slug']
-        )
         context['category'] = get_object_or_404(
             Category.objects.filter(slug=self.kwargs['category_slug'])
         )
+        paginator = Paginator(
+            self.post_published_filter().filter(
+                category__slug=self.kwargs['category_slug']
+            ), POSTS_ON_PAGE)
+        page_number = self.request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        context['page_obj'] = page_obj
+
         return context
 
 
@@ -128,7 +135,10 @@ def profile(request, username):
     profile = get_object_or_404(
         get_user_model().objects.all().filter(username=username)
     )
-    page_obj = Post.objects.filter(author_id=profile.id)
+    paginator = Paginator(
+        Post.objects.filter(author_id=profile.id), POSTS_ON_PAGE)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
 
     template = 'blog/profile.html'
     context = {'profile': profile, 'page_obj': page_obj}
