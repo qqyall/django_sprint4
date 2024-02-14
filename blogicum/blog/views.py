@@ -1,35 +1,26 @@
 from datetime import datetime
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.urls import reverse_lazy
-from django.shortcuts import (
-    get_list_or_404, get_object_or_404, render, redirect
-)
-from django.views.generic import (
-    CreateView, DeleteView, DetailView, ListView, UpdateView
-)
+
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
+from django.db.models.query import QuerySet
+from django.http import HttpRequest, HttpResponse
+from django.shortcuts import (get_list_or_404, get_object_or_404, redirect,
+                              render)
+from django.urls import reverse_lazy
+from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
+                                  UpdateView)
 
-from .models import Category, Post, Comment
-
-from .forms import PostForm, CommentForm
 from users.forms import CustomUserChangeForm
 
-
-def post_published_filter():
-    return Post.objects.all().filter(
-        is_published=True,
-        category__is_published=True,
-        pub_date__lt=datetime.utcnow()
-    )
+from .forms import CommentForm, PostForm, ProfileForm
+from .models import Category, Comment, Post
 
 
 class PostListView(ListView):
     model = Post
-    ordering = 'id'
     paginate_by = 10
     template_name = 'blog/index.html'
-    ordering = ('-pub_date',)
+    ordering = ('-id',)
 
 
 class PostCreateView(CreateView):
@@ -72,20 +63,30 @@ class PostDeleteView(DeleteView):
     success_url = reverse_lazy('blog:index')
 
 
-def category_posts(request, category_slug):
-    template = 'blog/category.html'
-    post_list = get_list_or_404(
-        post_published_filter(),
-        category__slug=category_slug
-    )
+class CategoryListView(ListView):
+    model = Category
+    paginate_by = 1
+    template_name = 'blog/category.html'
+    ordering = ('-id',)
 
-    category = get_object_or_404(
-        Category.objects.filter(
-            slug=category_slug
+    @staticmethod
+    def post_published_filter():
+        return Post.objects.all().filter(
+            is_published=True,
+            category__is_published=True,
+            pub_date__lt=datetime.utcnow()
         )
-    )
-    context = {'post_list': post_list, 'category': category}
-    return render(request, template, context)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_obj'] = get_list_or_404(
+            self.post_published_filter(),
+            category__slug=self.kwargs['category_slug']
+        )
+        context['category'] = get_object_or_404(
+            Category.objects.filter(slug=self.kwargs['category_slug'])
+        )
+        return context
 
 
 @login_required
@@ -111,8 +112,15 @@ def edit_comment(request, post_id, comment_id):
     return render(request, template, context)
 
 
-def delete_comment(request, pk):
-    pass
+@login_required
+def delete_comment(request, post_id, comment_id):
+    instance = get_object_or_404(Comment, pk=comment_id)
+    form = CommentForm(instance=instance)
+    context = {'form': form}
+    if request.method == 'POST':
+        instance.delete()
+        return redirect('blog:index')
+    return render(request, 'blog/comment.html', context)
 
 
 @login_required
@@ -120,9 +128,8 @@ def profile(request, username):
     profile = get_object_or_404(
         get_user_model().objects.all().filter(username=username)
     )
-    page_obj = get_list_or_404(
-        Post.objects.filter(author_id=request.user.id)
-    )
+    page_obj = Post.objects.filter(author_id=profile.id)
+
     template = 'blog/profile.html'
     context = {'profile': profile, 'page_obj': page_obj}
     return render(request, template, context=context)

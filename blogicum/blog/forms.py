@@ -1,6 +1,8 @@
 from django import forms
 
-from .models import Post, Comment
+from django.contrib.auth import get_user_model
+
+from .models import Comment, Post
 
 
 class PostForm(forms.ModelForm):
@@ -21,3 +23,9 @@ class CommentForm(forms.ModelForm):
         widgets = {
             'text': forms.Textarea({'cols': '22', 'rows': '2'}),
         }
+
+
+class ProfileForm(forms.ModelForm):
+    class Meta:
+        model = get_user_model()
+        fields = '__all__'
