@@ -8,7 +8,7 @@ from .models import Comment, Post
 class PostForm(forms.ModelForm):
     class Meta:
         model = Post
-        fields = ['title', 'text', 'pub_date', 'location', 'category']
+        fields = ['title', 'text', 'pub_date', 'location', 'category', 'image']
         widgets = {
             'text': forms.Textarea({'cols': '22', 'rows': '2'}),
             'pub_date': forms.DateTimeInput(
