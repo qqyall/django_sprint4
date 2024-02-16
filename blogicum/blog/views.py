@@ -134,10 +134,10 @@ class CommentUpdateView(UpdateView):
     template_name = 'blog/comment.html'
 
     def form_valid(self, form: BaseModelForm) -> HttpResponse:
-        self.success_url = reverse_lazy('blog:post_detail', args=["ZALUPA"])
+        post_id = self.request.path.split('/')[-4]
+        self.success_url = reverse_lazy('blog:post_detail', args=[post_id])
         return super().form_valid(form)
 
-    
 
 @login_required
 def delete_comment(request, post_id, comment_id):
