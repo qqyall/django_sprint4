@@ -1,5 +1,6 @@
-from django.urls import path
 from django.contrib.auth.decorators import login_required
+from django.urls import path
+
 from . import views
 
 app_name = 'blog'
@@ -20,7 +21,8 @@ urlpatterns = [
     path('posts/<int:post_id>/comments/',
          views.add_comment, name='add_comment'),
     path('posts/<int:post_id>/edit_comment/<int:id>/',
-         login_required(views.CommentUpdateView.as_view()), name='edit_comment'),
+         login_required(views.CommentUpdateView.as_view()),
+         name='edit_comment'),
     path('posts/<int:post_id>/delete_comment/<int:id>/',
          views.delete_comment, name='delete_comment'),
 

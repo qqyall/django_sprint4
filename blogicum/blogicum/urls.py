@@ -1,11 +1,10 @@
 from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.views import LoginView
 from django.urls import include, path, reverse_lazy
 from django.views.generic.edit import CreateView
-
-from django.conf.urls.static import static
 
 handler404 = 'pages.views.handler_404'
 handler403 = 'pages.views.handler_403'
