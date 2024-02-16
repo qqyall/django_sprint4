@@ -5,8 +5,10 @@ from django.contrib.auth.views import LoginView
 from django.urls import include, path, reverse_lazy
 from django.views.generic.edit import CreateView
 
+from django.conf.urls.static import static
+
 handler404 = 'pages.views.handler_404'
-handler404 = 'pages.views.handler_403_csrf_failure'
+handler403 = 'pages.views.handler_403'
 handler500 = 'pages.views.handler_500'
 
 urlpatterns = [
@@ -31,7 +33,7 @@ urlpatterns = [
         name='login',
     ),
     path('auth/', include('django.contrib.auth.urls')),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
     import debug_toolbar

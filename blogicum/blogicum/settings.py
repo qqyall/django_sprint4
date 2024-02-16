@@ -91,6 +91,8 @@ EMAIL_FILE_PATH = BASE_DIR / 'sent_emails'
 
 MEDIA_ROOT = BASE_DIR / 'media'
 
+CSRF_FAILURE_VIEW = 'pages.views.handler_403'
+
 LANGUAGE_CODE = 'ru-RU'
 
 TIME_ZONE = 'UTC'
