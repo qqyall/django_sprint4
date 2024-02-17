@@ -24,8 +24,12 @@ def post_published_filter():
     )
 
 
-class PostListView(ListView):
+class PostMixin:
     model = Post
+    form_class = PostForm
+
+
+class PostListView(PostMixin, ListView):
     template_name = 'blog/index.html'
     ordering = ('-pub_date',)
 
@@ -40,9 +44,7 @@ class PostListView(ListView):
         return context
 
 
-class PostCreateView(CreateView):
-    model = Post
-    form_class = PostForm
+class PostCreateView(PostMixin, CreateView):
     template_name = 'blog/create.html'
     success_url = 'blog:index'
 
@@ -53,8 +55,7 @@ class PostCreateView(CreateView):
         return super().form_valid(form)
 
 
-class PostDetailView(DetailView):
-    model = Post
+class PostDetailView(PostMixin, DetailView):
     template_name = 'blog/detail.html'
 
     def dispatch(self, request, *args, **kwargs):
@@ -84,9 +85,7 @@ class PostDetailView(DetailView):
         return context
 
 
-class PostUpdateView(UpdateView):
-    model = Post
-    form_class = PostForm
+class PostUpdateView(PostMixin, UpdateView):
     template_name = 'blog/create.html'
     success_url = reverse_lazy('blog:index')
 
@@ -99,8 +98,7 @@ class PostUpdateView(UpdateView):
         return super().dispatch(request, *args, **kwargs)
 
 
-class PostDeleteView(DeleteView):
-    model = Post
+class PostDeleteView(PostMixin, DeleteView):
     template_name = 'blog/create.html'
     success_url = reverse_lazy('blog:index')
 
@@ -147,7 +145,6 @@ def add_comment(request, post_id):
         comment.post = post
         comment.save()
 
-        # Update comment count on post
         post = Post.objects.get(pk=post_id)
         post.comment_count += 1
         post.save(update_fields=['comment_count'])
@@ -173,7 +170,7 @@ def delete_comment(request, post_id, id):
     instance = get_object_or_404(Comment, pk=id, author=request.user)
     if request.method == 'POST':
         instance.delete()
-        # Update comment count on post
+
         post = Post.objects.get(pk=post_id)
         post.comment_count -= 1
         post.save(update_fields=['comment_count'])
