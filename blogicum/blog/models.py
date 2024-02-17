@@ -1,7 +1,6 @@
+from core.models import CreatedAtModel, PublishedModel
 from django.contrib.auth import get_user_model
 from django.db import models
-
-from core.models import CreatedAtModel, PublishedModel
 
 from .consts import STR_MAX_LENGTH
 
@@ -79,10 +78,41 @@ class Post(PublishedModel, CreatedAtModel):
         on_delete=models.SET_NULL,
         null=True
     )
+    comment_count = models.IntegerField(
+        default=0,
+        blank=True
+    )
+    image = models.ImageField(
+        verbose_name='Фото',
+        upload_to='posts_images',
+        blank=True
+    )
 
     class Meta:
         verbose_name = "публикация"
         verbose_name_plural = "Публикации"
+        ordering = ('-pub_date',)
+
+    def __str__(self):
+        return self.title
+
+
+class Comment(PublishedModel, CreatedAtModel):
+    id = models.IntegerField(primary_key=True)
+    text = models.TextField(
+        verbose_name="Комментарий"
+    )
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        related_name='comments',
+    )
+    author = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = "комментарий"
+        verbose_name_plural = "Комментарии"
+        ordering = ('created_at',)
 
     def __str__(self):
         return self.title

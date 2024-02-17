@@ -1,12 +1,13 @@
 from django.conf import settings
+from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path, reverse_lazy
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from django.views.generic.edit import CreateView
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 from django.contrib.auth.views import LoginView
+from django.urls import include, path, reverse_lazy
+from django.views.generic.edit import CreateView
 
 handler404 = 'pages.views.handler_404'
-handler404 = 'pages.views.handler_403_csrf_failure'
+handler403 = 'pages.views.handler_403'
 handler500 = 'pages.views.handler_500'
 
 urlpatterns = [
@@ -31,7 +32,7 @@ urlpatterns = [
         name='login',
     ),
     path('auth/', include('django.contrib.auth.urls')),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
     import debug_toolbar
