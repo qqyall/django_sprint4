@@ -3,7 +3,6 @@ from datetime import datetime
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.forms import BaseModelForm
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -159,11 +158,11 @@ class CommentUpdateView(UpdateView):
     model = Comment
     form_class = CommentForm
     pk_url_kwarg = 'id'
-    pk_field = 'id'
     template_name = 'blog/comment.html'
 
-    def form_valid(self, form: BaseModelForm):
-        get_object_or_404(Comment, pk=id, author=self.request.user)
+    def form_valid(self, form):
+        get_object_or_404(Comment, pk=self.kwargs['id'],
+                          author=self.request.user)
         post_id = self.request.path.split('/')[-4]
         self.success_url = reverse_lazy('blog:post_detail', args=[post_id])
         return super().form_valid(form)
