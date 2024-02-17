@@ -13,7 +13,7 @@ from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
 from users.forms import CustomUserChangeForm
 
 from .consts import POSTS_ON_PAGE
-from .forms import CommentForm, PostForm
+from .forms import CommentForm, PostForm, ProfileForm
 from .models import Category, Comment, Post
 
 
@@ -159,6 +159,7 @@ class CommentUpdateView(UpdateView):
     model = Comment
     form_class = CommentForm
     pk_url_kwarg = 'id'
+    pk_field = 'id'
     template_name = 'blog/comment.html'
 
     def form_valid(self, form: BaseModelForm):
@@ -181,19 +182,24 @@ def delete_comment(request, post_id, id):
     return render(request, 'blog/comment.html')
 
 
-@login_required
-def profile(request, username):
-    profile = get_object_or_404(
-        get_user_model().objects.all().filter(username=username)
-    )
-    paginator = Paginator(
-        Post.objects.filter(author_id=profile.id), POSTS_ON_PAGE)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+class ProfileDetailView(DetailView):
+    model = get_user_model()
+    slug_url_kwarg = 'username'
+    slug_field = 'username'
+    template_name = 'blog/profile.html'
 
-    template = 'blog/profile.html'
-    context = {'profile': profile, 'page_obj': page_obj}
-    return render(request, template, context=context)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        profile = get_object_or_404(
+            get_user_model().objects.all().filter(username=kwargs['object'])
+        )
+        context['profile'] = profile
+        context['form'] = ProfileForm()
+        paginator = Paginator(
+            Post.objects.filter(author_id=profile.id), POSTS_ON_PAGE)
+        page_number = self.request.GET.get('page')
+        context['page_obj'] = paginator.get_page(page_number)
+        return context
 
 
 @login_required
