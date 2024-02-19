@@ -3,6 +3,7 @@ from datetime import datetime
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db.models.query import QuerySet
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
@@ -197,11 +198,13 @@ class ProfileDetailView(DetailView):
         context['page_obj'] = paginator.get_page(page_number)
         return context
 
+    def get_queryset(self):
+        return super().get_queryset()
+
 
 @login_required
 def edit_profile(request):
-    instance = get_object_or_404(get_user_model(), username=request.user)
-    form = CustomUserChangeForm(request.POST, instance=instance)
+    form = CustomUserChangeForm(request.POST, instance=request.user)
     context = {'form': form}
     if form.is_valid():
         form.save()
