@@ -1,6 +1,7 @@
-from core.models import CreatedAtModel, PublishedModel
 from django.contrib.auth import get_user_model
 from django.db import models
+
+from core.models import CreatedAtModel, PublishedModel
 
 from .consts import STR_MAX_LENGTH
 
@@ -8,7 +9,6 @@ User = get_user_model()
 
 
 class Category(PublishedModel, CreatedAtModel):
-    id = models.IntegerField(primary_key=True)
     title = models.CharField(
         max_length=STR_MAX_LENGTH,
         verbose_name="Заголовок"
@@ -28,11 +28,11 @@ class Category(PublishedModel, CreatedAtModel):
         verbose_name_plural = "Категории"
 
     def __str__(self):
-        return self.title
+        return (self.title[:20] + '...' if len(self.title) > 20
+                else self.title)
 
 
 class Location(PublishedModel, CreatedAtModel):
-    id = models.IntegerField(primary_key=True)
     name = models.CharField(
         max_length=STR_MAX_LENGTH,
         verbose_name="Название места"
@@ -47,7 +47,6 @@ class Location(PublishedModel, CreatedAtModel):
 
 
 class Post(PublishedModel, CreatedAtModel):
-    id = models.IntegerField(primary_key=True)
     title = models.CharField(
         max_length=STR_MAX_LENGTH,
         verbose_name="Заголовок"
@@ -78,10 +77,6 @@ class Post(PublishedModel, CreatedAtModel):
         on_delete=models.SET_NULL,
         null=True
     )
-    comment_count = models.IntegerField(
-        default=0,
-        blank=True
-    )
     image = models.ImageField(
         verbose_name='Фото',
         upload_to='posts_images',
@@ -92,22 +87,25 @@ class Post(PublishedModel, CreatedAtModel):
         verbose_name = "публикация"
         verbose_name_plural = "Публикации"
         ordering = ('-pub_date',)
+        default_related_name = 'post'
 
     def __str__(self):
         return self.title
 
 
 class Comment(PublishedModel, CreatedAtModel):
-    id = models.IntegerField(primary_key=True)
     text = models.TextField(
         verbose_name="Комментарий"
     )
     post = models.ForeignKey(
         Post,
         on_delete=models.CASCADE,
-        related_name='comments',
+        related_name='comments'
     )
-    author = models.ForeignKey(User, on_delete=models.CASCADE)
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+    )
 
     class Meta:
         verbose_name = "комментарий"
@@ -115,4 +113,4 @@ class Comment(PublishedModel, CreatedAtModel):
         ordering = ('created_at',)
 
     def __str__(self):
-        return self.title
+        return f'post_id:{self.post}, user_id:{self.author}, text:{self.text}'
