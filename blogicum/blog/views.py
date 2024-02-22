@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db.models import Count
+from django.db.models.base import Model as Model
 from django.db.models.query import QuerySet
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -29,7 +31,6 @@ def post_published_filter():
 class PostListView(PostMixin, ListView):
     template_name = 'blog/index.html'
     ordering = ('-pub_date',)
-    paginate_by = 100
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -41,10 +42,11 @@ class PostListView(PostMixin, ListView):
 class PostCreateView(PostMixin, CreateView):
     template_name = 'blog/create.html'
 
+    def get_success_url(self) -> str:
+        return reverse_lazy('blog:profile', args=[self.request.user])
+
     def form_valid(self, form):
         form.instance.author = self.request.user
-        self.success_url = reverse_lazy(
-            'blog:profile', args=[self.request.user])
         return super().form_valid(form)
 
 
@@ -53,27 +55,26 @@ class PostDetailView(PostMixin, DetailView):
     pk_url_kwarg = 'post_id'
 
     def get_queryset(self):
-        instance = self.get_object()
+        post = get_object_or_404(Post, pk=self.kwargs['post_id'])
+        if post.author == self.request.user:
+            return Post.objects.filter(author=self.request.user)
 
-        def instance_not_published(instance):
-            return (
-                not instance.is_published
-                or not instance.category.is_published
-                or instance.pub_date > timezone.now()
-            )
+        return Post.objects.filter(
+            is_published=True,
+            category__is_published=True,
+            pub_date__lt=timezone.now()
+        )
 
-        if instance_not_published(instance):
-            if instance.author_id != instance.author:
-                raise Http404
-
-        return super().get_queryset()
+    def get_object(self, queryset=None):
+        self.queryset = self.get_queryset()
+        return super().get_object(self.queryset)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['post'] = get_object_or_404(Post, pk=self.kwargs['post_id'])
         context['form'] = CommentForm()
         context['comments'] = (
-            self.object.comments.select_related('post')
+            self.object.comments.select_related('author')
         )
         return context
 
@@ -166,26 +167,42 @@ def delete_comment(request, post_id, comment_id):
     return render(request, 'blog/comment.html')
 
 
-class ProfileDetailView(DetailView):
-    model = get_user_model()
-    slug_url_kwarg = 'username'
-    slug_field = 'username'
+class ProfileListView(ListView):
+    model = Post
     template_name = 'blog/profile.html'
+    paginate_by = POSTS_ON_PAGE
+    ordering = ('-pub_date',)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        profile = get_object_or_404(
-            get_user_model().objects.all().filter(username=kwargs['object'])
+        context['profile'] = get_object_or_404(
+            get_user_model().objects.all().filter(
+                username=self.kwargs['username'])
         )
-        context['profile'] = profile
-        context['form'] = ProfileForm()
-
-        context['page_obj'] = wrap_paginator_commentcounter(
-            self, Post.objects.filter, author_id=profile.id)
+        for obj in context['page_obj']:
+            obj.comment_count = Post.objects.filter(
+                pk=obj.id
+            ).annotate(
+                Count('comments'))[0].comments__count
         return context
 
     def get_queryset(self):
-        return super().get_queryset()
+        author = get_object_or_404(
+            get_user_model(),
+            username=self.kwargs['username']
+        )
+
+        authors_posts = Post.objects.all().filter(
+            author_id=author.id
+        ).select_related('author', 'location', 'category')
+
+        if str(author.username) == str(self.request.user):
+            return authors_posts
+        return authors_posts.filter(
+            is_published=True,
+            category__is_published=True,
+            pub_date__lt=timezone.now()
+        )
 
 
 @login_required
