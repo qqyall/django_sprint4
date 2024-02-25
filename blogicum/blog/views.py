@@ -5,6 +5,7 @@ from django.core.paginator import Paginator
 from django.db.models import Count
 from django.db.models.base import Model as Model
 from django.db.models.query import QuerySet
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -134,13 +135,19 @@ class CategoryListView(ListView):
         return add_comment_count(context)
 
     def get_queryset(self):
-        return Post.objects.all().filter(
-            category__slug=self.kwargs['category_slug'],
-        ).filter(
-            is_published=True,
-            category__is_published=True,
-            pub_date__lt=timezone.now()
-        ).select_related('author', 'location', 'category')
+        category = get_object_or_404(
+            Category,
+            slug=self.kwargs['category_slug']
+        )
+        if category.is_published == 1:
+            return Post.objects.all().filter(
+                category__slug=self.kwargs['category_slug'],
+            ).filter(
+                is_published=True,
+                category__is_published=True,
+                pub_date__lt=timezone.now()
+            ).select_related('author', 'location', 'category')
+        raise Http404(f'No such category {category}')
 
 
 @login_required
