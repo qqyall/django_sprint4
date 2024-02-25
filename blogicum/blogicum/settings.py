@@ -84,6 +84,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LOGIN_REDIRECT_URL = 'blog:index'
+LOGIN_URL = '/auth/login/'
 
 EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
 

@@ -1,10 +1,10 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
 from django.db.models import Count
 from django.db.models.base import Model as Model
 from django.db.models.query import QuerySet
-from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -14,9 +14,8 @@ from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
 from users.forms import CustomUserChangeForm
 
 from .consts import POSTS_ON_PAGE
-from .forms import CommentForm, ProfileForm
+from .forms import CommentForm
 from .models import Category, Comment, Post
-from .decorators import wrap_paginator_commentcounter
 from .mixins import PostMixin
 
 
@@ -28,15 +27,28 @@ def post_published_filter():
     ).select_related('author', 'location', 'category')
 
 
+def add_comment_count(context):
+    for obj in context['page_obj']:
+        obj.comment_count = Post.objects.filter(
+            pk=obj.id
+        ).annotate(
+            Count('comments'))[0].comments__count
+    return context
+
 class PostListView(PostMixin, ListView):
     template_name = 'blog/index.html'
     ordering = ('-pub_date',)
+    paginate_by = POSTS_ON_PAGE
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page_obj'] = wrap_paginator_commentcounter(
-            self, post_published_filter,)
+        for obj in context['page_obj']:
+            obj.comment_count = Post.objects.filter(
+                pk=obj.id).annotate(Count('comments'))[0].comments__count
         return context
+
+    def get_queryset(self):
+        return post_published_filter()
 
 
 class PostCreateView(PostMixin, CreateView):
@@ -79,17 +91,20 @@ class PostDetailView(PostMixin, DetailView):
         return context
 
 
-class PostUpdateView(PostMixin, UpdateView):
+class PostUpdateMixin():
+    def dispatch(self, request, *args, **kwargs):
+        if self.get_object().author != self.request.user:
+            return redirect('blog:post_detail', kwargs['post_id'])
+        return super().dispatch(request, *args, **kwargs)
+
+
+class PostUpdateView(PostMixin, LoginRequiredMixin, PostUpdateMixin,
+                     UpdateView):
     template_name = 'blog/create.html'
     success_url = reverse_lazy('blog:index')
     pk_url_kwarg = 'post_id'
 
     def dispatch(self, request, *args, **kwargs):
-        instance = get_object_or_404(Post, pk=kwargs['post_id'])
-        if instance.author != self.request.user:
-            if self.request.user.pk is None:
-                return redirect('login')
-            return redirect('blog:post_detail', kwargs['post_id'])
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -99,8 +114,7 @@ class PostDeleteView(PostMixin, DeleteView):
     pk_url_kwarg = 'post_id'
 
     def dispatch(self, request, *args, **kwargs):
-        instance = get_object_or_404(Post, pk=kwargs['post_id'])
-        if instance.author != self.request.user:
+        if self.get_object().author != self.request.user:
             return redirect('blog:post_detail', kwargs['post_id'])
         return super().dispatch(request, *args, **kwargs)
 
@@ -112,21 +126,21 @@ class CategoryListView(ListView):
     model = Category
     template_name = 'blog/category.html'
     ordering = ('-id',)
+    paginate_by = POSTS_ON_PAGE
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['category'] = get_object_or_404(
-            Category.objects.filter(is_published=1)
-            .filter(slug=self.kwargs['category_slug'])
-        )
-        paginator = Paginator(
-            post_published_filter().filter(
-                category__slug=self.kwargs['category_slug']
-            ), POSTS_ON_PAGE)
-        page_number = self.request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
-        context['page_obj'] = page_obj
-        return context
+        context['category'] = self.get_queryset()
+        return add_comment_count(context)
+
+    def get_queryset(self):
+        return Post.objects.all().filter(
+            category__slug=self.kwargs['category_slug'],
+        ).filter(
+            is_published=True,
+            category__is_published=True,
+            pub_date__lt=timezone.now()
+        ).select_related('author', 'location', 'category')
 
 
 @login_required
@@ -143,17 +157,19 @@ def add_comment(request, post_id):
     return redirect('blog:post_detail', post_id=post_id)
 
 
-class CommentUpdateView(UpdateView):
+class CommentUpdateView(LoginRequiredMixin, UpdateView):
     model = Comment
     form_class = CommentForm
     pk_url_kwarg = 'comment_id'
     template_name = 'blog/comment.html'
 
+    def get_success_url(self):
+        post_id = self.request.path.split('/')[-4]
+        return reverse_lazy('blog:post_detail', args=[post_id])
+
     def form_valid(self, form):
         get_object_or_404(Comment, pk=self.kwargs['comment_id'],
                           author=self.request.user)
-        post_id = self.request.path.split('/')[-4]
-        self.success_url = reverse_lazy('blog:post_detail', args=[post_id])
         return super().form_valid(form)
 
 
@@ -179,12 +195,7 @@ class ProfileListView(ListView):
             get_user_model().objects.all().filter(
                 username=self.kwargs['username'])
         )
-        for obj in context['page_obj']:
-            obj.comment_count = Post.objects.filter(
-                pk=obj.id
-            ).annotate(
-                Count('comments'))[0].comments__count
-        return context
+        return add_comment_count(context)
 
     def get_queryset(self):
         author = get_object_or_404(

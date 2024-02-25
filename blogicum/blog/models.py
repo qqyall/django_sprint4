@@ -100,7 +100,8 @@ class Comment(PublishedModel, CreatedAtModel):
     post = models.ForeignKey(
         Post,
         on_delete=models.CASCADE,
-        related_name='comments'
+        related_name='comments',
+        blank=True
     )
     author = models.ForeignKey(
         User,
