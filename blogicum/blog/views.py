@@ -1,23 +1,19 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.paginator import Paginator
 from django.db.models import Count
-from django.db.models.base import Model as Model
-from django.db.models.query import QuerySet
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import (CreateView, DeleteView, DetailView, ListView,
                                   UpdateView)
-
 from users.forms import CustomUserChangeForm
 
 from .consts import POSTS_ON_PAGE
 from .forms import CommentForm
-from .models import Category, Comment, Post
 from .mixins import PostMixin
+from .models import Category, Comment, Post
 
 
 def post_published_filter():
@@ -35,6 +31,7 @@ def add_comment_count(context):
         ).annotate(
             Count('comments'))[0].comments__count
     return context
+
 
 class PostListView(PostMixin, ListView):
     template_name = 'blog/index.html'

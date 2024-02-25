@@ -1,7 +1,6 @@
+from core.models import CreatedAtModel, PublishedModel
 from django.contrib.auth import get_user_model
 from django.db import models
-
-from core.models import CreatedAtModel, PublishedModel
 
 from .consts import STR_MAX_LENGTH
 
@@ -114,4 +113,8 @@ class Comment(PublishedModel, CreatedAtModel):
         ordering = ('created_at',)
 
     def __str__(self):
-        return f'post_id:{self.post}, user_id:{self.author}, text:{self.text}'
+        return (
+            f'post_id: {self.post}',
+            f'user_id: {self.author}',
+            f'text: {self.text}'
+        )

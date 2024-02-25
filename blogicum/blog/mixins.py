@@ -1,5 +1,5 @@
-from .models import Post
 from .forms import PostForm
+from .models import Post
 
 
 class PostMixin:
