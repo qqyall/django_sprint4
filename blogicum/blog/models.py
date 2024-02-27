@@ -86,7 +86,7 @@ class Post(PublishedModel, CreatedAtModel):
         verbose_name = "публикация"
         verbose_name_plural = "Публикации"
         ordering = ('-pub_date',)
-        default_related_name = 'post'
+        default_related_name = 'posts'
 
     def __str__(self):
         return self.title
@@ -105,6 +105,7 @@ class Comment(PublishedModel, CreatedAtModel):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
+        related_name='comments'
     )
 
     class Meta:

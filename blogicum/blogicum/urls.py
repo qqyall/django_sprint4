@@ -11,9 +11,9 @@ handler403 = 'pages.views.handler_403'
 handler500 = 'pages.views.handler_500'
 
 urlpatterns = [
+    path('admin/', admin.site.urls),
     path('auth/', include('django.contrib.auth.urls')),
     path('pages/', include('pages.urls', namespace='pages')),
-    path('admin/', admin.site.urls),
     path(
         'auth/registration/',
         CreateView.as_view(
